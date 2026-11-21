@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ウィジャボード・霊媒シミュレーター</title>
+<script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-950 min-h-screen flex flex-col items-center justify-center p-4">
+<div class="w-full max-w-lg">
+  <h1 class="text-3xl font-bold text-purple-300 text-center mb-1">🕯️ ウィジャボード</h1>
+  <p class="text-gray-600 text-center text-xs mb-4 italic">Planchette Spirit Simulator</p>
+
+  <div class="mb-4">
+    <label class="block text-gray-400 text-sm mb-1" for="question-input">質問を入力してください</label>
+    <div class="flex gap-2">
+      <input type="text" id="question-input" placeholder="例：私の未来はどうなりますか？" class="flex-1 bg-gray-900 text-white rounded-xl p-3 border border-gray-700 focus:border-purple-500 outline-none text-sm" aria-label="霊への質問">
+      <button onclick="askSpirit()" id="ask-btn" class="bg-purple-900 hover:bg-purple-800 text-purple-300 px-4 py-3 rounded-xl font-bold border border-purple-700 transition">聞く</button>
+    </div>
+  </div>
+
+  <!-- Ouija Board -->
+  <div class="bg-gray-900 border-2 border-amber-800 rounded-2xl p-4 mb-4 shadow-2xl">
+    <!-- YES / NO / HELLO / GOODBYE -->
+    <div class="flex justify-between mb-3 text-amber-600 font-serif text-lg">
+      <span class="cursor-default">YES</span>
+      <span class="cursor-default text-sm text-gray-600 mt-1">✦ OUIJA ✦</span>
+      <span class="cursor-default">NO</span>
+    </div>
+
+    <!-- Letters A-Z -->
+    <div id="board" class="mb-3">
+      <div class="flex justify-center gap-1 flex-wrap mb-1" id="row1"></div>
+      <div class="flex justify-center gap-1 flex-wrap" id="row2"></div>
+    </div>
+
+    <!-- Numbers -->
+    <div class="flex justify-center gap-1 mb-3" id="numbers"></div>
+
+    <!-- Goodbye -->
+    <div class="text-center text-amber-700 font-serif text-sm">GOODBYE</div>
+  </div>
+
+  <!-- Response area -->
+  <div id="response-area" class="text-center min-h-12">
+    <div id="response-text" class="text-purple-300 text-xl font-bold tracking-widest font-mono"></div>
+    <div id="status-text" class="text-gray-600 text-xs mt-1"></div>
+  </div>
+</div>
+
+<script>
+const letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+const numbers = '1234567890'.split('');
+const specialAnswers = ['YES', 'NO', 'GOODBYE', 'MAYBE', 'ASK AGAIN', 'NEVER'];
+
+let isAnimating = false;
+let currentHighlight = null;
+
+function buildBoard() {
+  const row1 = document.getElementById('row1');
+  const row2 = document.getElementById('row2');
+  const nums = document.getElementById('numbers');
+
+  'ABCDEFGHIJKLM'.split('').forEach(ch => {
+    const span = createCell(ch, 'letter-cell');
+    row1.appendChild(span);
+  });
+  'NOPQRSTUVWXYZ'.split('').forEach(ch => {
+    const span = createCell(ch, 'letter-cell');
+    row2.appendChild(span);
+  });
+  numbers.forEach(n => {
+    const span = createCell(n, 'num-cell');
+    nums.appendChild(span);
+  });
+}
+
+function createCell(ch, cls) {
+  const span = document.createElement('span');
+  span.id = 'cell-' + ch;
+  span.className = `${cls} inline-block w-7 h-7 text-center text-amber-700 font-serif font-bold text-sm leading-7 rounded transition-all duration-200 select-none`;
+  span.textContent = ch;
+  return span;
+}
+
+function highlightCell(ch, active) {
+  const el = document.getElementById('cell-' + ch);
+  if (!el) return;
+  if (active) {
+    el.className = el.className.replace('text-amber-700', '').replace('bg-purple-900', '');
+    el.classList.add('bg-purple-900', 'text-white', 'scale-125', 'shadow-lg');
+  } else {
+    el.classList.remove('bg-purple-900', 'text-white', 'scale-125', 'shadow-lg');
+    el.classList.add('text-amber-700');
+  }
+}
+
+function generateResponse() {
+  const r = Math.random();
+  if (r < 0.15) return specialAnswers[Math.floor(Math.random() * specialAnswers.length)];
+  const len = Math.floor(Math.random() * 7) + 2;
+  const words = ['BEWARE', 'SEEK', 'TRUTH', 'DARKNESS', 'LIGHT', 'BEYOND', 'SHADOW', 'WHISPER', 'SILENT', 'PAST', 'FUTURE', 'NOW', 'SOON', 'NEVER', 'ALWAYS'];
+  if (r < 0.4) return words[Math.floor(Math.random() * words.length)];
+  // Spell out a random sequence
+  let s = '';
+  for (let i = 0; i < len; i++) s += letters[Math.floor(Math.random() * letters.length)];
+  return s;
+}
+
+async function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+async function animatePlanchette(text) {
+  document.getElementById('response-text').textContent = '';
+  document.getElementById('status-text').textContent = '霊が導いている...';
+
+  let displayed = '';
+  for (const ch of text) {
+    if (currentHighlight) highlightCell(currentHighlight, false);
+    currentHighlight = ch;
+    highlightCell(ch, true);
+    await sleep(400 + Math.random() * 400);
+    displayed += ch;
+    document.getElementById('response-text').textContent = displayed;
+  }
+  if (currentHighlight) {
+    await sleep(800);
+    highlightCell(currentHighlight, false);
+    currentHighlight = null;
+  }
+  document.getElementById('status-text').textContent = '霊のメッセージ: ' + text;
+}
+
+async function askSpirit() {
+  if (isAnimating) return;
+  isAnimating = true;
+  const btn = document.getElementById('ask-btn');
+  btn.disabled = true;
+  btn.textContent = '...';
+  document.getElementById('status-text').textContent = '霊を呼び出しています...';
+  document.getElementById('response-text').textContent = '';
+  await sleep(1000 + Math.random() * 1000);
+  const response = generateResponse();
+  await animatePlanchette(response);
+  btn.disabled = false;
+  btn.textContent = '聞く';
+  isAnimating = false;
+}
+
+buildBoard();
+document.getElementById('question-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') askSpirit();
+});
+</script>
+</body>
+</html>
